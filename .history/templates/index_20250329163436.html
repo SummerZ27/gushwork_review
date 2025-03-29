@@ -6,13 +6,12 @@
   <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
   <style>
     :root {
-      /* Color Variables */
-      --primary-color: #C49A6C;      /* Warm medium brown */
-      --primary-hover: #B68A5E;      /* Slightly darker shade */
-      --bg-light: #F5ECE2;          /* Main beige background */
-      --bg-lighter: #FCF8F5;        /* Even lighter background for gradient */
-      --accent-color: #8C7463;      /* Darker brown accent */
+      --primary-color: #4CAF50;
+      --primary-hover: #45a049;
+      --bg-light: #ffffff;
+      --bg-dark: #f8f1e4;
       --text-color: #333;
+      --accent-color: #2c3e50;
       --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
@@ -24,7 +23,7 @@
     }
     body {
       font-family: 'Roboto', sans-serif;
-      background: linear-gradient(135deg, var(--bg-lighter) 0%, var(--bg-light) 100%);
+      background: linear-gradient(135deg, #f8f1e4 0%, #e0d8c3 100%);
       color: var(--text-color);
       line-height: 1.6;
       min-height: 100vh;
@@ -55,10 +54,10 @@
     #upload-section {
       padding: 20px;
       text-align: center;
-      background: #fff;
+      background: var(--bg-light);
       border-bottom: 1px solid #eee;
       position: sticky;
-      top: 100px; /* below header */
+      top: 80px; /* below header */
       z-index: 90;
     }
     #upload-section input[type="file"] {
@@ -67,7 +66,6 @@
       border-radius: 4px;
       cursor: pointer;
       margin-right: 10px;
-      background: #fafafa;
     }
     #upload-section button {
       padding: 10px 20px;
@@ -94,7 +92,7 @@
       display: flex;
       flex-wrap: wrap;
       margin: 20px;
-      background: #fff;
+      background: var(--bg-light);
       border-radius: 8px;
       overflow: hidden;
       box-shadow: var(--card-shadow);
