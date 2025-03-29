@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Blog Reviewer and Rewriter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #upload-section {
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+        #container {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+        #left, #right {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+        }
+        #left {
+            border-right: none;
+        }
+        #right {
+            border-left: none;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section h3 {
+            margin-bottom: 5px;
+        }
+        pre {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="upload-section">
+        <input type="file" id="fileInput" accept=".txt">
+        <button id="uploadBtn">Upload</button>
+        <span id="status"></span>
+    </div>
+    <div id="container">
+        <div id="left">
+            <h2>Original Text</h2>
+            <pre id="originalText"></pre>
+        </div>
+        <div id="right">
+            <h2>Processed Output</h2>
+            <div class="section">
+                <h3>Feedback from Reviewers</h3>
+                <div id="feedbacks"></div>
+            </div>
+            <div class="section">
+                <h3>Revised Blog Post</h3>
+                <pre id="revisedText"></pre>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('uploadBtn').addEventListener('click', function() {
+            var fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) {
+                alert('Please select a .txt file.');
+                return;
+            }
+            var file = fileInput.files[0];
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var text = e.target.result;
+                // Display the original text in the left pane
+                document.getElementById('originalText').textContent = text;
+                document.getElementById('status').textContent = 'Processing...';
+
+                // Prepare form data and send to the server
+                var formData = new FormData();
+                formData.append('file', file);
+                fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('status').textContent = '';
+                    // Display reviewer feedbacks
+                    var feedbackContainer = document.getElementById('feedbacks');
+                    feedbackContainer.innerHTML = '';
+                    data.feedbacks.forEach(function(feedback, index) {
+                        var div = document.createElement('div');
+                        div.innerHTML = '<strong>Reviewer ' + (index + 1) + ':</strong><br><pre>' + feedback + '</pre>';
+                        feedbackContainer.appendChild(div);
+                    });
+                    // Display the revised blog post
+                    document.getElementById('revisedText').textContent = data.revised;
+                })
+                .catch(error => {
+                    document.getElementById('status').textContent = 'Error occurred.';
+                    console.error('Error:', error);
+                });
+            };
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+</html>

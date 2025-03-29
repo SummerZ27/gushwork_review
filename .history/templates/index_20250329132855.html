@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Biostate AI Gushwork Review AI</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap" rel="stylesheet">
+  <style>
+    /* Overall page style with a subtle linen texture background */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', sans-serif;
+      background: #f8f1e4 url('https://www.transparenttextures.com/patterns/linen.png');
+      background-size: auto;
+      color: #333;
+    }
+    /* Header section with title and support info */
+    #header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(255,255,255,0.95);
+      border-bottom: 1px solid #ddd;
+    }
+    #header h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+    #header p {
+      margin: 5px 0 0;
+      font-size: 14px;
+      color: #555;
+    }
+    /* Upload section */
+    #upload-section {
+      padding: 20px;
+      text-align: center;
+      background-color: rgba(255,255,255,0.9);
+      border-bottom: 1px solid #ddd;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    #upload-section input[type="file"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #upload-section button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      background: #4CAF50;
+      color: white;
+      font-size: 16px;
+      margin: 0 10px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    #upload-section button:hover {
+      background: #45a049;
+    }
+    #status {
+      margin-left: 20px;
+      font-size: 16px;
+      color: #555;
+    }
+    /* Main container styled as a card with soft shadow */
+    #container {
+      display: flex;
+      margin: 20px;
+      height: calc(100vh - 180px);
+      background: rgba(255,255,255,0.95);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    /* Left and right pane styling */
+    #left, #right {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    #left {
+      border-right: 1px solid #ddd;
+      background-color: #fafafa;
+    }
+    #right {
+      background-color: #fff;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 22px;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+    .runContainer {
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #ddd;
+    }
+    .runContainer h3 {
+      font-size: 18px;
+      color: #444;
+      margin-bottom: 10px;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header with title and support info -->
+  <div id="header">
+    <h1>Biostate AI Gushwork Review AI</h1>
+    <p>contact summer.zhou@biostate.ai for technical support</p>
+  </div>
+  
+  <!-- Upload & control section -->
+  <div id="upload-section">
+      <input type="file" id="fileInput" accept=".txt">
+      <button id="uploadBtn">Upload & Process</button>
+      <button id="secondRunBtn">Second Run</button>
+      <span id="status"></span>
+  </div>
+  
+  <!-- Main content container with two columns -->
+  <div id="container">
+      <!-- Left pane: shows the input text for the current run -->
+      <div id="left">
+          <h2>Input Text</h2>
+          <pre id="inputText"></pre>
+      </div>
+      <!-- Right pane: displays the streaming output results -->
+      <div id="right">
+          <h2>Processed Output</h2>
+          <div id="resultsContainer">
+            <!-- Each run's output will be appended here -->
+          </div>
+      </div>
+  </div>
+  
+  <script>
+    let lastRevised = "";    // to store the revised text from the last run
+    let runCount = 0;        // run counter to differentiate runs
+
+    // Function to process the stream from the server.
+    function processStream(formData, runNumber) {
+      // Create a new container for this run's output.
+      const runContainer = document.createElement('div');
+      runContainer.className = 'runContainer';
+      runContainer.innerHTML = `<h3>Run ${runNumber}</h3>
+        <div class="feedbacks"></div>
+        <div class="revisedOutput"><pre></pre></div>`;
+      document.getElementById('resultsContainer').appendChild(runContainer);
+
+      // Update status message.
+      document.getElementById('status').textContent = 'Processing run ' + runNumber + '...';
+
+      fetch('/stream', {
+        method: 'POST',
+        body: formData
+      }).then(response => {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder("utf-8");
+          let buffer = "";
+          function read() {
+              reader.read().then(({done, value}) => {
+                  if (done) {
+                      document.getElementById('status').textContent = 'Run ' + runNumber + ' complete.';
+                      return;
+                  }
+                  buffer += decoder.decode(value, {stream: true});
+                  let parts = buffer.split("\n\n");
+                  // The last part may be incomplete; keep it in the buffer
+                  buffer = parts.pop();
+                  parts.forEach(part => {
+                      if (part.startsWith("data: ")) {
+                          const jsonString = part.substring(6);
+                          try {
+                              const event = JSON.parse(jsonString);
+                              handleEvent(event, runContainer, runNumber);
+                          } catch(e) {
+                              console.error("Error parsing event:", e);
+                          }
+                      }
+                  });
+                  read();
+              });
+          }
+          read();
+      }).catch(error => {
+          document.getElementById('status').textContent = 'Error occurred.';
+          console.error('Error:', error);
+      });
+    }
+
+    // Handle each SSE event.
+    function handleEvent(event, runContainer, runNumber) {
+      // For the first event "original", update the left pane to show the input text.
+      if (event.event === 'original') {
+          document.getElementById('inputText').textContent = event.content;
+      } else if (event.event === 'feedback') {
+          // Append each reviewer feedback to the current run's feedback container.
+          const feedbackContainer = runContainer.querySelector('.feedbacks');
+          const div = document.createElement('div');
+          div.innerHTML = `<strong>Reviewer ${event.index}:</strong><br><pre>${event.content}</pre>`;
+          feedbackContainer.appendChild(div);
+      } else if (event.event === 'revised') {
+          // Display the revised blog post in the current run's revised output.
+          const revisedContainer = runContainer.querySelector('.revisedOutput pre');
+          revisedContainer.textContent = event.content;
+          // Save this revised text for potential second run.
+          lastRevised = event.content;
+      }
+    }
+
+    // Handler for the first run via file upload.
+    document.getElementById('uploadBtn').addEventListener('click', function() {
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput.files.length === 0) {
+            alert('Please select a .txt file.');
+            return;
+        }
+        const file = fileInput.files[0];
+
+        // Read the file to display its content on the left pane.
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            document.getElementById('inputText').textContent = text;
+        };
+        reader.readAsText(file);
+
+        // Create FormData and process the stream.
+        const formData = new FormData();
+        formData.append('file', file);
+        runCount = 1; // first run
+        processStream(formData, runCount);
+    });
+
+    // Handler for the "Second Run" button.
+    document.getElementById('secondRunBtn').addEventListener('click', function() {
+        if (!lastRevised || lastRevised.trim() === "") {
+            alert('No revised text available from a previous run.');
+            return;
+        }
+        // Use the last revised text as the new input.
+        document.getElementById('inputText').textContent = lastRevised;
+        // Create a Blob from the revised text so we can send it as a file.
+        const blob = new Blob([lastRevised], { type: "text/plain" });
+        const formData = new FormData();
+        formData.append('file', blob, "input.txt");
+        runCount++;
+        processStream(formData, runCount);
+    });
+  </script>
+</body>
+</html>

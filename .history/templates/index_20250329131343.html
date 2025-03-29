@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Blog Reviewer and Rewriter (Streaming)</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap" rel="stylesheet">
+  <style>
+    /* Overall page style with a subtle linen texture background */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', sans-serif;
+      background: #f8f1e4 url('https://www.transparenttextures.com/patterns/linen.png');
+      background-size: auto;
+      color: #333;
+    }
+    /* Sticky upload section at the top */
+    #upload-section {
+      padding: 20px;
+      text-align: center;
+      background-color: rgba(255,255,255,0.9);
+      border-bottom: 1px solid #ddd;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    #upload-section input[type="file"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #upload-section button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      background: #4CAF50;
+      color: white;
+      font-size: 16px;
+      margin-left: 10px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    #upload-section button:hover {
+      background: #45a049;
+    }
+    /* Main container styled as a card with soft shadow */
+    #container {
+      display: flex;
+      margin: 20px;
+      height: calc(100vh - 120px);
+      background: rgba(255,255,255,0.95);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    /* Left and right pane styling */
+    #left, #right {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    #left {
+      border-right: 1px solid #ddd;
+      background-color: #fafafa;
+    }
+    #right {
+      background-color: #fff;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 22px;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    .section h3 {
+      margin-bottom: 10px;
+      font-size: 18px;
+      color: #444;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    #status {
+      margin-left: 20px;
+      font-size: 16px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+    <div id="upload-section">
+        <input type="file" id="fileInput" accept=".txt">
+        <button id="uploadBtn">Upload & Process</button>
+        <span id="status"></span>
+    </div>
+    <div id="container">
+        <div id="left">
+            <h2>Original Text</h2>
+            <pre id="originalText"></pre>
+        </div>
+        <div id="right">
+            <h2>Processed Output</h2>
+            <div class="section">
+                <h3>Reviewer Feedbacks</h3>
+                <div id="feedbacks"></div>
+            </div>
+            <div class="section">
+                <h3>Revised Blog Post</h3>
+                <pre id="revisedText"></pre>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('uploadBtn').addEventListener('click', function() {
+            var fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) {
+                alert('Please select a .txt file.');
+                return;
+            }
+            var file = fileInput.files[0];
+
+            // Clear previous content
+            document.getElementById('originalText').textContent = '';
+            document.getElementById('feedbacks').innerHTML = '';
+            document.getElementById('revisedText').textContent = '';
+            document.getElementById('status').textContent = 'Processing...';
+
+            var formData = new FormData();
+            formData.append('file', file);
+
+            // Use fetch to post the file and stream the response
+            fetch('/stream', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let buffer = "";
+                function read() {
+                    reader.read().then(({done, value}) => {
+                        if (done) {
+                            document.getElementById('status').textContent = 'Done.';
+                            return;
+                        }
+                        buffer += decoder.decode(value, {stream: true});
+                        let parts = buffer.split("\n\n");
+                        // The last part may be incomplete; keep it in the buffer
+                        buffer = parts.pop();
+                        parts.forEach(part => {
+                            if (part.startsWith("data: ")) {
+                                const jsonString = part.substring(6);
+                                try {
+                                    const event = JSON.parse(jsonString);
+                                    handleEvent(event);
+                                } catch(e) {
+                                    console.error("Error parsing event:", e);
+                                }
+                            }
+                        });
+                        read();
+                    });
+                }
+                read();
+            }).catch(error => {
+                document.getElementById('status').textContent = 'Error occurred.';
+                console.error('Error:', error);
+            });
+        });
+
+        function handleEvent(event) {
+            if (event.event === 'original') {
+                document.getElementById('originalText').textContent = event.content;
+            } else if (event.event === 'feedback') {
+                const container = document.getElementById('feedbacks');
+                const div = document.createElement('div');
+                div.innerHTML = '<strong>Reviewer ' + event.index + ':</strong><br><pre>' + event.content + '</pre>';
+                container.appendChild(div);
+            } else if (event.event === 'revised') {
+                document.getElementById('revisedText').textContent = event.content;
+            }
+        }
+    </script>
+</body>
+</html>
