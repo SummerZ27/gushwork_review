@@ -4,10 +4,10 @@ import json
 from anthropic import Anthropic
 
 app = Flask(__name__)
-app.secret_key = "abcabcabc"  # Replace with a strong, random secret key
+app.secret_key = "your_secret_key_here"  # Replace with a strong, random secret key
 
 # Set your login password
-PASSWORD = "gushwork_pass_biostate"
+PASSWORD = "your_password"
 
 # --------------------------------------------------------------------
 # Configuration
